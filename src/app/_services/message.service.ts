@@ -6,6 +6,7 @@ import { Message } from '../_models/message';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { User } from '../_models/user';
 import { BehaviorSubject, take } from 'rxjs';
+import { Group } from '../_models/group';
 
 @Injectable({
   providedIn: 'root'
@@ -22,16 +23,31 @@ export class MessageService {
 
   createHubConnection(user: User, otherUsername: string) {
     this.hubConnection = new HubConnectionBuilder()
-    .withUrl(this.hubUrl + 'message?user=' + otherUsername, {
-      accessTokenFactory: () => user.token
-    })
-    .withAutomaticReconnect()
-    .build();
+      .withUrl(this.hubUrl + 'message?user=' + otherUsername, {
+        accessTokenFactory: () => user.token
+      })
+      .withAutomaticReconnect()
+      .build();
 
     this.hubConnection.start().catch(error => console.log(error));
 
     this.hubConnection.on('ReceiveMessageThread', messages => {
       this.messageThreadSource.next(messages)
+    })
+
+    this.hubConnection.on('UpdatedGroup', (group: Group) => {
+      if (group.connections.some(x => x.username === otherUsername)) {
+        this.messageThread$.pipe(take(1)).subscribe({
+          next: messages => {
+            messages.forEach(message => {
+              if (!message.dateRead) {
+                message.dateRead = new Date(Date.now())
+              }
+            })
+            this.messageThreadSource.next([...messages]);
+          }
+        })
+      }
     })
 
     this.hubConnection.on('NewMessage', message => {
@@ -44,7 +60,7 @@ export class MessageService {
   }
 
   stopHubConnection() {
-    if(this.hubConnection) {
+    if (this.hubConnection) {
       this.hubConnection.stop();
     }
   }
@@ -60,7 +76,7 @@ export class MessageService {
   }
 
   async sendMessage(username: string, content: string) {
-    return this.hubConnection?.invoke('SendMessage', {recipientUsername: username, content})
+    return this.hubConnection?.invoke('SendMessage', { recipientUsername: username, content })
       .catch(error => console.log(error));
   }
 
