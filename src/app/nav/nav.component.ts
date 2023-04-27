@@ -11,21 +11,24 @@ import { ToastrService } from 'ngx-toastr';
 export class NavComponent {
 
   model: any = {}
-  
-  constructor(public accountService: AccountService, private router: Router, private toastr: ToastrService) {}
-  
+
+  constructor(public accountService: AccountService, private router: Router, private toastr: ToastrService) { }
+
   ngOnInit(): void {
   }
 
   login() {
     this.accountService.login(this.model).subscribe({
-      next: _ => this.router.navigateByUrl('/members')
+      next: _ => {
+        this.router.navigateByUrl('/members');
+        this.model = {}
+      }
     })
   }
 
   logout() {
     this.accountService.logout();
-    this.router.navigateByUrl('/')
+    this.router.navigateByUrl('/');
   }
 
 }
